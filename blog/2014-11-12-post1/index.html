@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>Carmen La</title>
+  <link rel="shortcut icon" type="image/png" href="/blog/img/favicon.png">
+  <meta name="description" content="I work at UHN Digital developing clinical applications with Clojure and ClojureScript." />
+  <meta name="keywords" content="Carmen La, developer, clojure, Toronto" />
+  <meta name="author" content="Carme La" />
+  
+   
+  <meta name="canonical" content="http://carmenla.me/blog/2014-11-12-post1/">
+  
+  <meta property="og:title" content="Carmen La">
+  <meta property="og:description" content="I work at UHN developing clinical applications with Clojure and ClojureScript.">
+  <meta property="og:url" content="http://carmen.la">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:site_name" content="Carmen La">
+  <link href="https://fonts.googleapis.com/css?family=Merriweather|Inconsolata|Roboto:400,700" rel="stylesheet">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.1/styles/github.min.css">
+  <link href="/blog/css/base.css" rel="stylesheet" type="text/css" />
+  <link href="/blog/css/blog.css" rel="stylesheet" type="text/css" />
+
+</head>
+
+<body>
+  <div class="container">
+    <main>
+      <section id="nav">
+        <div>
+          <a href="/blog/archives/">Archives</a>
+          <a href="/blog/tags/">Tags</a>
+          <a href="/blog/rss.xml">RSS</a>
+        </div>
+        <a class="blog-name" href="http://carmen.la">// <span>Carmen La</span></a>
+      </section>
+      <section id="content">
+        
+<div id="post">
+  November 12, 2014
+<h1>Another Year, Another Blog</h1>
+<div id="post-content">
+   <p>Welcome to the first post of what is probably my 3rd or 4th attempt at maintaining a blog. The first few times didn't blow over too well. I'm not one for creative writing and my lack of motivation eventually led to the abandonment of my previous blogging attempts.</p><p>The last time I tried to maintain a blog was probably two to three years ago and I was working with WordPress. The templates weren't very palateable and neither was the code. The admin interface was nice but it just wasn't worth it if I only wanted to serve up static content. I recall trying out blogspot but that wasn't my cup of tea either.</p><h2 id="enter&#95;misaki">Enter Misaki</h2><p>Originally, I tried to use <a href='https://github.com/liquidz/misaki'>Misaki</a>, a <a href='http://jekyllrb.com/'>Jekyll</a> inspired static site generator written in Clojure. It was simple at first. There were a few included <a href='https://github.com/weavejester/hiccup'>hiccup</a> layouts and a few example posts (also written in hiccup). But I soon found that this was going to be much more complicated than I had anticipated.</p><p><!&ndash;more&ndash;></p><p>I encountered my first problem when I wanted to display the most recent blog entry on the home page. After searching through the <a href='http://liquidz.github.io/misaki/api/index.html'>API</a>, I concluded that this was the best and only way to display the contents of the latest post: </p><pre><code class="clojure">&#91;:div
+   &#40;-&gt;&gt; &#40;:posts site&#41;
+        first
+        :lazy-content
+        force&#41;&#93;
+</code></pre><p>Except... this wasn't quite right. Misaki's compiler escaped html tags when it populated the lazy content. I guess this was an easy fix though. I simply modified function from the line of code where the lazy content was populated. </p><p>My biggest complaint was that Misaki didn't have out of the box support for Markdown posts. There's actually another version called <a href='https://github.com/liquidz/misaki-markdown'>Misaki Markdown</a> but any pages that I wanted to add had to be written in markdown as well. What I wanted was to be able to create custom pages with html/css and write my posts in markdown. </p><p>I ended up altering <code>misaki.server</code> in order to preprocess markdown posts into html posts before compiling the entire site. The first three functions below are what I added.</p><pre><code class="clojure">&#40;defn- find-assets &#91;f ext&#93;
+  &#40;-&gt;&gt; f
+       file-seq
+       &#40;filter &#40;fn &#91;file&#93; &#40;-&gt; file .getName &#40;.endsWith ext&#41;&#41;&#41;&#41;
+       rest&#41;&#41;
+
+&#40;defn preprocess &#91;file&#93;
+  &#40;with-open &#91;rdr &#40;clojure.java.io/reader file&#41;&#93;
+    &#40;-&gt;&gt; &#40;doall &#40;line-seq rdr&#41;&#41;
+         &#40;split-with #&#40;.startsWith &#40;.trim %&#41; &quot;;&quot;&#41;&#41;
+         &#40;map #&#40;clojure.string/join &quot;\n&quot; %&#41;&#41;&#41;&#41;&#41;
+
+&#40;defn compile-markdown &#91;&#93;
+  &#40;doseq &#91;file &#40;find-assets &#40;clojure.java.io/file &quot;md&quot;&#41; &quot;md&quot;&#41;&#93;
+    &#40;spit &#40;str &quot;my-blog/template/posts/&quot;
+               &#40;first &#40;clojure.string/split &#40;.getName file&#41; #&quot;\.&quot;&#41;&#41;
+               &quot;.html.clj&quot;&#41;
+          &#40;let &#91;&#91;header content&#93; &#40;preprocess file&#41;&#93;
+            &#40;str header &quot;\n&quot;  &quot;&#91;:div &quot; &#40;with-out-str &#40;pprint &#40;md/to-html content&#41;&#41;&#41; &quot;&#93;&quot;&#41;&#41;&#41;&#41;&#41;
+
+; =do-all-compile
+&#40;defn do-all-compile
+  &#91;&#93;
+  &#40;compile-markdown&#41;
+  &#40;print-compile-result &quot;all templates&quot; &#40;call-all-compile&#41;&#41;
+  &#40;println &quot; &#42; Finish Compiling&quot;&#41;&#41;
+</code></pre><p>Setting up my site to my specifications took way longer than it should have and I couldn't help but think there must be another way.</p><h2 id="introducing&#95;cryogen">Introducing Cryogen</h2><p>All this resulted in <a href='https://github.com/lacarmen/cryogen'>Cryogen</a>, a simple static site generator written in Clojure by <a href='https://github.com/yogthos'>Yogthos</a> and I.</p><p><strong>Features</strong></p><ul><li>Blog posts and pages with Markdown<ul><li>Twitter Bootstrap theming</li><li>Plain HTML page templates with <a href='https://github.com/yogthos/selmer'>Selmer</a></li><li>Code syntax highlighting with <a href='https://highlightjs.org/'>Highlight.js</a></li><li>Tags</li><li>Sitemap</li><li>RSS feed</li></ul></li></ul><p><strong>Setting Up Cryogen</strong></p><p>The easiest way to get Cryogen set up is to use <a href='https://github.com/technomancy/leiningen/'>Leiningen</a>. Once you have Leiningen 2.5.0 or above installed, simply run the following command to create a new cryogen template.</p><pre><code>$ lein new cryogen &lt;project name&gt;
+</code></pre><p>Alternatively, you can put <code>cryogen</code> in the <code>Leningen Template to use:</code> field if you are creating a new Leiningen project in Eclipse with Counterclockwise.</p><p><strong>Project Structure</strong></p><p>The new project will have the following structure:</p><pre><code>my-blog
+|---.gitignore
+|---project.clj
+|---resources
+|   |---config.edn
+|   |---templates
+|   |   |---css
+|   |   |   |---screen.css
+|   |   |---js
+|   |   |   |---main.js
+|   |   |---img
+|   |   |   |---favicon.png
+|   |   |---html
+|   |   |   |---layouts
+|   |   |       |---archives.html
+|   |   |       |---base.html
+|   |   |       |---home.html
+|   |   |       |---page.html
+|   |   |       |---post.html
+|   |   |       |---tag.html
+|   |   |---md
+|   |       |---pages
+|   |       |   |---about.md
+|   |       |   |---another-page.md
+|   |       |---posts
+|   |           |---10-03-2014-first-post.md
+|   |           |---11-04-2014-second-post.md
+|   |           |---13-11-2014-docs.md
+|---src
+|   |---cryogen
+|   |   |---compiler.clj
+|   |   |---io.clj
+|   |   |---rss.clj
+|   |   |---server.clj
+|   |   |---sitemap.clj
+|   |   |---watcher.clj
+
+</code></pre><p>The skeleton site has a few example posts and pages in it. </p><ul><li><code>templates/md</code> - blog posts written in Markdown<ul><li><code>templates/pages</code>- custom pages written in Markdown</li><li><code>templates/css</code> - save your custom CSS files</li><li><code>templates/js</code> - save your custom js files here</li></ul></li></ul><p><strong> Compiling Posts and Running the Server </strong></p><p>The server can be started using the <code>lein-ring</code> plugin. Running the following in the root folder of your Cryogen project will compile your resources to <code>resources/public</code> then start the site at <a href='http://localhost:3000'>http://localhost:3000</a></p><pre><code>$ lein ring server
+</code></pre><p>That's it for getting the basic template up and running. Additional docs can be found on the <a href='https://github.com/lacarmen/cryogen'>github page</a>.</p><hr/><p>So here we go! Another attempt at maintaining a blog - this time using Cryogen. It's actually my first noteworthy project using Clojure and hopefully that will encourage me to write here regularly. I'd also like to give a huge thanks to <a href='http://yogthos.net/'>Yogthos</a> for helping me out with my first project!</p>
+</div>
+  
+    <b>Tags: </b> 
+    <a href="/blog/tag/cryogen/">cryogen</a> 
+    <a href="/blog/tag/clojure/">clojure</a> 
+    <a href="/blog/tag/misaki/">misaki</a> 
+  
+
+  <div id="prev-next">
+    
+    <a href="/blog/2014-11-26-post2/">&laquo; Previous Post</a>
+    
+    
+  </div>
+
+  
+</div>
+
+      </section>
+      <section id="footer">
+        <p>&copy; <span id="cpyear"></span> Carmen La</p>
+        <p>Powered by <a href="http://cryogenweb.org">Cryogen</a></p>
+        <p><a href="#" name="top" title="Back to top">Back to top ↑</a></p>
+      </section>
+    </main>
+  </div>
+
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+  <script src="/blog/js/main.js" type="text/javascript"></script>
+  <script src="/blog/js/highlight.pack.js" type="text/javascript"></script>
+  <script>
+    hljs.initHighlightingOnLoad();
+  </script>
+  <script>
+    (function(i, s, o, g, r, a, m) {
+      i['GoogleAnalyticsObject'] = r;
+      i[r] = i[r] || function() {
+        (i[r].q = i[r].q || []).push(arguments)
+      }, i[r].l = 1 * new Date();
+      a = s.createElement(o),
+        m = s.getElementsByTagName(o)[0];
+      a.async = 1;
+      a.src = g;
+      m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+    ga('create', 'UA-56703143-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</body>
+
+</html>
